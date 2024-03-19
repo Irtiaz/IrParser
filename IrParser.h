@@ -9,17 +9,17 @@
 typedef struct {
     char *key;
     int value;
-} StringHashMapItem;
+} IrParseStringHashMapItem;
 
 typedef struct {
     int variableColumnIndex;
     int popCount;
-} RuleDescriptor;
+} IrParseRuleDescriptor;
 
 
 typedef struct {
-    StringHashMapItem *tokenMap;
-    RuleDescriptor *descriptors;
+    IrParseStringHashMapItem *tokenMap;
+    IrParseRuleDescriptor *descriptors;
     int **table;
     int rowCount;
     int columnCount;
@@ -28,7 +28,7 @@ typedef struct {
 typedef struct {
     IrType value;
     char *lexVal;
-} StackItem;
+} IrParseStackItem;
 
 char tokens[][TOKEN_NAME_MAX_LENGTH] = {
    "id", "+", "id", "*", "id", "$" 
@@ -44,9 +44,9 @@ IrParser *createIrParser(const char *parseTableFileName) {
     IrParser *irParser;
 
     FILE *parseTableFile;
-    StringHashMapItem *tokenMap;
+    IrParseStringHashMapItem *tokenMap;
     int rowCount, columnCount;
-    RuleDescriptor *descriptors;
+    IrParseRuleDescriptor *descriptors;
     int **table;
 
     parseTableFile = fopen(parseTableFileName, "r");
@@ -80,7 +80,7 @@ IrParser *createIrParser(const char *parseTableFileName) {
         int ruleDescriptorCount;
         fscanf(parseTableFile, "%d", &ruleDescriptorCount);
 
-        descriptors = (RuleDescriptor *)malloc(sizeof(RuleDescriptor) * ruleDescriptorCount);
+        descriptors = (IrParseRuleDescriptor *)malloc(sizeof(IrParseRuleDescriptor) * ruleDescriptorCount);
         
         {
             int i;
@@ -124,8 +124,8 @@ IrParser *createIrParser(const char *parseTableFileName) {
 }
 
 void irParse(IrParser *irParser) {
-    StringHashMapItem *tokenMap = irParser->tokenMap;
-    RuleDescriptor *descriptors = irParser->descriptors;
+    IrParseStringHashMapItem *tokenMap = irParser->tokenMap;
+    IrParseRuleDescriptor *descriptors = irParser->descriptors;
     int **table = irParser->table;
 
     int *stateStack = NULL;
@@ -150,7 +150,7 @@ void irParse(IrParser *irParser) {
                lookahead = shget(tokenMap, getNextToken());
            }
            else {
-               RuleDescriptor descriptor = descriptors[-tableValue - 1];
+               IrParseRuleDescriptor descriptor = descriptors[-tableValue - 1];
                int i;
                for (i = 0; i < descriptor.popCount; ++i) {
                    arrdel(stateStack, arrlen(stateStack) - 1);
