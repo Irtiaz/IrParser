@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h>
 
 #define TOKEN_NAME_MAX_LENGTH 30
 
@@ -18,17 +19,20 @@ typedef struct {
 
 
 typedef struct {
+    IrType value;
+    char *lexVal;
+} IrParseStackItem;
+
+typedef struct {
     IrParseStringHashMapItem *tokenMap;
     IrParseRuleDescriptor *descriptors;
     int **table;
     int rowCount;
     int columnCount;
-} IrParser;
+    
+    void (**ruleHandlers)(void);
 
-typedef struct {
-    IrType value;
-    char *lexVal;
-} IrParseStackItem;
+} IrParser;
 
 char tokens[][TOKEN_NAME_MAX_LENGTH] = {
    "id", "+", "id", "*", "id", "$" 
@@ -36,11 +40,11 @@ char tokens[][TOKEN_NAME_MAX_LENGTH] = {
 int tokenIndex = 0;
 char *getNextToken(void);
 
-IrParser *createIrParser(const char *parseTableFileName);
+IrParser *createIrParser(const char *parseTableFileName, ...);
 void irParse(IrParser *irParser);
 void destroyIrParser(IrParser *irParser);
 
-IrParser *createIrParser(const char *parseTableFileName) {
+IrParser *createIrParser(const char *parseTableFileName, ...) {
     IrParser *irParser;
 
     FILE *parseTableFile;
@@ -48,6 +52,7 @@ IrParser *createIrParser(const char *parseTableFileName) {
     int rowCount, columnCount;
     IrParseRuleDescriptor *descriptors;
     int **table;
+    void (**ruleHandlers)(void);
 
     parseTableFile = fopen(parseTableFileName, "r");
     if (!parseTableFile) {
@@ -87,7 +92,22 @@ IrParser *createIrParser(const char *parseTableFileName) {
             for (i = 0; i < ruleDescriptorCount; ++i) {
                 fscanf(parseTableFile, "%d %d", &descriptors[i].variableColumnIndex, &descriptors[i].popCount);
             }
-        }    
+        }
+
+        {
+            va_list rulesArgumentList;
+            int i;
+            
+            ruleHandlers = (void(**)(void))malloc(sizeof(void(**)(void)) * ruleDescriptorCount);
+
+            va_start(rulesArgumentList, ruleDescriptorCount);
+            
+            for (i = 0; i < ruleDescriptorCount; ++i) {
+                ruleHandlers[i] = va_arg(rulesArgumentList, void(*)(void));
+            }
+            
+            va_end(rulesArgumentList);
+        }
     }
 
     {
@@ -119,6 +139,7 @@ IrParser *createIrParser(const char *parseTableFileName) {
     irParser->table = table;
     irParser->rowCount = rowCount;
     irParser->columnCount = columnCount;
+    irParser->ruleHandlers = ruleHandlers;
 
     return irParser;
 }
@@ -127,6 +148,7 @@ void irParse(IrParser *irParser) {
     IrParseStringHashMapItem *tokenMap = irParser->tokenMap;
     IrParseRuleDescriptor *descriptors = irParser->descriptors;
     int **table = irParser->table;
+    void (**ruleHandlers)(void) = irParser->ruleHandlers;
 
     int *stateStack = NULL;
     int lookahead = shget(tokenMap, getNextToken());
@@ -150,8 +172,14 @@ void irParse(IrParser *irParser) {
                lookahead = shget(tokenMap, getNextToken());
            }
            else {
-               IrParseRuleDescriptor descriptor = descriptors[-tableValue - 1];
+               int ruleIndex = -tableValue - 1;
+               IrParseRuleDescriptor descriptor = descriptors[ruleIndex];
                int i;
+
+               if (ruleHandlers[ruleIndex]) {
+                   (*ruleHandlers[ruleIndex])();
+               }
+
                for (i = 0; i < descriptor.popCount; ++i) {
                    arrdel(stateStack, arrlen(stateStack) - 1);
                }
@@ -185,6 +213,7 @@ void destroyIrParser(IrParser *irParser) {
     free(irParser->table);
     free(irParser->descriptors);
     shfree(irParser->tokenMap);
+    free(irParser->ruleHandlers);
 
     free(irParser);
 }
