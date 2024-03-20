@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <stdarg.h>
 
+#include "IrLexer.h"
+
 #define BUFFER_SIZE 100
 #define MAX_TOKEN_CHARS 20
 
@@ -33,7 +35,8 @@ typedef struct {
     
     IrType (**ruleHandlers)(IrParseStackItem *items);
     void (*errorHandler)(void);
-
+    
+    IrLexer *irLexer;
 } IrParser;
 
 typedef struct {
@@ -41,34 +44,22 @@ typedef struct {
     char lexeme[BUFFER_SIZE];
 } TokenLexemePair;
 
-char tokens[][MAX_TOKEN_CHARS] = {
-   "id", "+", "id", "*", "id", "$" 
-};
-char lexemes[][10] = {
-    "2", "+", "3", "*", "5", "$"
-};
-int tokenIndex = 0;
-TokenLexemePair getNextPair(void);
+TokenLexemePair IrParseGetNextPair(IrLexer *irLexer);
 
-IrParser *createIrParser(const char *parseTableFileName, void (*errorHandler)(void), ...);
+IrParser *createIrParser(FILE *parseTableFile, FILE *ruleFile, FILE *inputFile, void (*errorHandler)(void), ...);
 IrType irParse(IrParser *irParser);
 void destroyIrParser(IrParser *irParser);
 
-IrParser *createIrParser(const char *parseTableFileName, void (*errorHandler)(void), ...) {
+IrParser *createIrParser(FILE *parseTableFile, FILE *ruleFile, FILE *inputFile, void (*errorHandler)(void), ...) {
     IrParser *irParser;
 
-    FILE *parseTableFile;
     IrParseStringHashMapItem *tokenMap;
     int rowCount, columnCount;
     IrParseRuleDescriptor *descriptors;
     int **table;
     IrType (**ruleHandlers)(IrParseStackItem*);
+    IrLexer *irLexer = createIrLexer(ruleFile, inputFile);
 
-    parseTableFile = fopen(parseTableFileName, "r");
-    if (!parseTableFile) {
-        fprintf(stderr, "Could not find parse table file: %s\n", parseTableFileName);
-        exit(1);
-    }
     
     sh_new_strdup(tokenMap);
     {
@@ -141,7 +132,6 @@ IrParser *createIrParser(const char *parseTableFileName, void (*errorHandler)(vo
             }
         }
     }
-    fclose(parseTableFile);
 
     irParser = (IrParser *)malloc(sizeof(IrParser));
     irParser->tokenMap = tokenMap;
@@ -151,6 +141,7 @@ IrParser *createIrParser(const char *parseTableFileName, void (*errorHandler)(vo
     irParser->columnCount = columnCount;
     irParser->ruleHandlers = ruleHandlers;
     irParser->errorHandler = errorHandler;
+    irParser->irLexer = irLexer;
 
     return irParser;
 }
@@ -162,7 +153,7 @@ IrType irParse(IrParser *irParser) {
     IrType(**ruleHandlers)(IrParseStackItem*) = irParser->ruleHandlers;
 
     int *stateStack = NULL;
-    TokenLexemePair nextPair = getNextPair();
+    TokenLexemePair nextPair = IrParseGetNextPair(irParser->irLexer);
     int lookahead = shget(tokenMap, nextPair.token);
     int inputRightEndMarker = shget(tokenMap, "$");
 
@@ -191,7 +182,7 @@ IrType irParse(IrParser *irParser) {
                    arrput(dataStack, item);
                }
 
-               nextPair = getNextPair();
+               nextPair = IrParseGetNextPair(irParser->irLexer);
                lookahead = shget(tokenMap, nextPair.token);
            }
            else {
@@ -254,20 +245,21 @@ void destroyIrParser(IrParser *irParser) {
     free(irParser->descriptors);
     shfree(irParser->tokenMap);
     free(irParser->ruleHandlers);
+    destroyIrLexer(irParser->irLexer);
 
     free(irParser);
 }
 
 
-TokenLexemePair getNextPair(void) {
-    char *token = tokens[tokenIndex];
-    char *lexeme = lexemes[tokenIndex];
+TokenLexemePair IrParseGetNextPair(IrLexer *irLexer) {
+    char token[MAX_TOKEN_CHARS];
+    char lexeme[BUFFER_SIZE];
     TokenLexemePair pair;
+
+    getNextToken(irLexer, token, lexeme);
 
     strcpy(pair.token, token); 
     strcpy(pair.lexeme, lexeme);
-
-    ++tokenIndex;
 
     return pair;
 }
