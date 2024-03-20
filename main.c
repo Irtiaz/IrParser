@@ -4,36 +4,52 @@
 #define IrType int
 #include "IrParser.h"
 
-void E_E_PLUS_T(void);
-void E_T(void);
-void F_id(void);
-void F_LPAREN_E_RPAREN(void);
-void T_T_INTO_F(void);
-void T_F(void);
+#include <stdio.h>
+#include <stdlib.h>
 
-int main(void) {    
-    IrParser *irParser = createIrParser("parse-table.txt", E_E_PLUS_T, E_T, F_id, F_LPAREN_E_RPAREN, T_T_INTO_F, T_F);
-    irParse(irParser);
+int E_E_PLUS_T(IrParseStackItem *items);
+int E_T(IrParseStackItem *items);
+int F_id(IrParseStackItem *items);
+int F_LPAREN_E_RPAREN(IrParseStackItem *items);
+int T_T_INTO_F(IrParseStackItem *items);
+int T_F(IrParseStackItem *items);
+
+void errorHandler(void);
+
+int main(void) { 
+    IrParser *irParser = createIrParser("parse-table.txt", errorHandler, E_E_PLUS_T, E_T, F_id, F_LPAREN_E_RPAREN, T_T_INTO_F, T_F);
+    int finalResult = irParse(irParser);
+
+    printf("%d\n", finalResult);
 
     destroyIrParser(irParser);
     return 0;
 }
 
-void E_E_PLUS_T(void) {
-    puts("E -> E + T");
+int E_E_PLUS_T(IrParseStackItem *items) {
+    return items[0].value + items[2].value;
 }
-void E_T(void) {
-    puts("E -> T");
+
+int E_T(IrParseStackItem *items) {
+    return items[0].value;
 }
-void T_T_INTO_F(void) {
-    puts("T -> T * F");
+
+int F_id(IrParseStackItem *items) {
+    return atoi(items[0].lexVal);
 }
-void T_F(void) {
-    puts("T -> F");
+
+int F_LPAREN_E_RPAREN(IrParseStackItem *items) {
+    return items[1].value;
 }
-void F_id(void) {
-    puts("F -> id");
+
+int T_T_INTO_F(IrParseStackItem *items) {
+    return items[0].value * items[2].value;
 }
-void F_LPAREN_E_RPAREN(void) {
-    puts("F -> (E)");
+
+int T_F(IrParseStackItem *items) {
+    return items[0].value;
+}
+
+void errorHandler(void) {
+    puts("Synatx error");
 }
