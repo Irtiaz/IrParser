@@ -197,7 +197,7 @@ IrType irParse(IrParser *irParser) {
 
                for (i = 0; i < descriptor.popCount; ++i) {
                    arrdel(stateStack, arrlen(stateStack) - 1);
-                   arrdel(dataStack, arrlen(dataStack) - 1);
+                   if (ruleHandlers[ruleIndex]) arrdel(dataStack, arrlen(dataStack) - 1);
                }
 
                if (ruleHandlers[ruleIndex]) {

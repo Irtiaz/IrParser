@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+int L_E_EQUAL(IrParseStackItem *items);
 int E_E_PLUS_T(IrParseStackItem *items);
 int E_T(IrParseStackItem *items);
 int F_id(IrParseStackItem *items);
@@ -22,7 +23,6 @@ int main(void) {
     FILE *inputFile;
 
     IrParser *irParser;
-    int finalResult;
 
     parseTableFile = fopen("parse-table.txt", "r");
     ruleFile = fopen("rules.txt", "r");
@@ -33,10 +33,8 @@ int main(void) {
         exit(1);
     }
 
-    irParser = createIrParser(parseTableFile, ruleFile, inputFile, errorHandler, E_E_PLUS_T, E_T, F_id, F_LPAREN_E_RPAREN, T_T_TIMES_F, T_F);
-    finalResult = irParse(irParser);
-
-    printf("%d\n", finalResult);
+    irParser = createIrParser(parseTableFile, ruleFile, stdin, errorHandler, NULL, NULL, NULL, L_E_EQUAL, E_E_PLUS_T, E_T, F_id, F_LPAREN_E_RPAREN, T_T_TIMES_F, T_F);
+    irParse(irParser);
 
     destroyIrParser(irParser);
     
@@ -44,6 +42,11 @@ int main(void) {
     fclose(ruleFile);
     fclose(inputFile);
 
+    return 0;
+}
+
+int L_E_EQUAL(IrParseStackItem *items) {
+    printf("%d\n", items[0].value);
     return 0;
 }
 
