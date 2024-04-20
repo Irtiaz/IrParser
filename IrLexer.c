@@ -134,7 +134,7 @@ regex_t *prepareRegex(const char *regexString) {
         modifiedRegexString[++i] = '\0';
     }
 
-    if (regcomp(regex, modifiedRegexString, 0)) {
+    if (regcomp(regex, modifiedRegexString, REG_EXTENDED)) {
         printf("Could not compile regex: %s\n", regexString); 
         exit(1);
     }
